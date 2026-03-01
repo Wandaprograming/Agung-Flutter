@@ -1,0 +1,49 @@
+name: Flutter Web Compiler (API Mode)
+
+# Workflow ini hanya bisa dipicu secara manual atau via API (tanpa commit)
+on:
+  workflow_dispatch:
+    inputs:
+      dart_code:
+        description: 'Kode main.dart dari App Studio'
+        required: true
+        default: "import 'package:flutter/material.dart'; void main() => runApp(MaterialApp(home: Scaffold(body: Center(child: Text('Hello World')))));"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Persiapan Environment
+        run: echo "Menerima sinyal build dari App Studio Mas Agung..."
+
+      - name: 2. Setup Flutter SDK (Dengan Cache)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0' # Versi stabil
+          channel: 'stable'
+          cache: true # SANGAT PENTING: Mempercepat build ke-2 dan seterusnya!
+
+      - name: 3. Buat Project Flutter Kosong
+        run: |
+          flutter create preview_app
+          
+      - name: 4. Suntikkan Kode dari HTML ke main.dart
+        env:
+          DART_CODE: ${{ github.event.inputs.dart_code }}
+        run: |
+          cd preview_app
+          # Menimpa file main.dart bawaan dengan kode kiriman Anda
+          echo "$DART_CODE" > lib/main.dart
+
+      - name: 5. Compile ke WebAssembly / HTML
+        run: |
+          cd preview_app
+          flutter build web --release
+
+      - name: 6. Simpan Hasil Build (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-result
+          path: preview_app/build/web/
+          retention-days: 1 # Langsung dihapus besoknya agar kuota GitHub tidak penuh
+          
